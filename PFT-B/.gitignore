@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtual env
+.venv/
+env/
+venv/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Alembic cache
+alembic/__pycache__/
+alembic/*.pyc
+
+# VSCode / IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
