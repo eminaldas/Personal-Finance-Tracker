@@ -20,7 +20,7 @@ app.add_middleware(
 Base.metadata.create_all(bind=engine)
 
 # Routers
-app.include_router(auth.router, prefix=settings.API_V1_STR)
+app.include_router(auth.router, prefix=settings.API_PREFIX)
 
 @app.get("/")
 def root():
