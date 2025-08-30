@@ -1,15 +1,5 @@
 import { useMemo, useState } from "react";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area, PieChart, Pie, Cell, Legend } from "recharts";
-
-/**
- * Frosted‑glass Finance Dashboard (same theme as Auth pages)
- * - Tailwind only styling, neon glows, subtle grid
- * - Summary stat cards
- * - Line/Area income vs expense chart
- * - Budget utilization bars
- * - Recent transactions table
- * - Simple filter toolbar (month / search)
- */
+import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area, PieChart, Pie, Cell, Legend } from "recharts";
 
 export default function DashboardPage() {
   const [month, setMonth] = useState<string>(currentMonthKey());
@@ -24,23 +14,10 @@ export default function DashboardPage() {
   const kpis = useMemo(() => computeKpis(filteredTx), [filteredTx]);
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#0b0c14] text-white">
-      {/* Background glows + grid */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-40 -left-32 h-96 w-96 rounded-full bg-fuchsia-600/30 blur-[120px]" />
-        <div className="absolute top-1/2 -right-40 h-[28rem] w-[28rem] -translate-y-1/2 rounded-full bg-cyan-500/25 blur-[130px]" />
-        <div className="absolute bottom-[-6rem] left-1/3 h-[22rem] w-[22rem] -translate-x-1/2 rounded-full bg-indigo-600/20 blur-[110px]" />
-        <svg className="absolute inset-0 h-full w-full opacity-[0.08]" aria-hidden>
-          <defs>
-            <pattern id="gridDash" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#gridDash)" />
-        </svg>
-      </div>
+    <>
 
-      <header className="relative z-10 mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-6">
+
+      <header className="relative z-10 mx-auto flex items-center justify-between gap-4 px-6 py-6">
         <div className="flex items-center gap-3">
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-white/10 ring-1 ring-white/15 backdrop-blur">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -64,7 +41,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-7xl px-6 pb-14">
+      <main className="relative z-10 mx-auto px-6 pb-14">
         {/* KPI Cards */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <StatCard title="Balance" value={fmt(kpis.balance)} hint="Current" />
@@ -180,7 +157,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
-    </div>
+    </>
   );
 }
 
