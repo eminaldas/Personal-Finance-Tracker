@@ -1,9 +1,9 @@
 # app/api/routes/auth.py
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 from jose.exceptions import ExpiredSignatureError, JWTClaimsError
-from uuid import UUID as UUID_T
 
 from app.db.session import SessionLocal
 from app.models.user import User
@@ -17,7 +17,9 @@ from app.core.security import (
 from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+security = HTTPBearer()
 
+# --- DB dependency -----------------------------------------------------------
 def get_db():
     db = SessionLocal()
     try:
@@ -25,11 +27,8 @@ def get_db():
     finally:
         db.close()
 
-# ---------------------------
-# REGISTER
-# ---------------------------
-# REGISTER
-@router.post("/register", response_model=UserOut)
+# --- REGISTER ---------------------------------------------------------------
+@router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     exists = db.query(User).filter(User.email == user.email).first()
     if exists:
@@ -45,25 +44,27 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return new_user
 
-# LOGIN → access + refresh(cookie)
+# --- LOGIN -> access + refresh(cookie) --------------------------------------
 @router.post("/login")
 def login(user: UserLogin, response: Response, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     if not db_user or not verify_password(user.password, db_user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    access_token = create_access_token(subject=str(db_user.id))
-    refresh_token = create_refresh_token(subject=str(db_user.id))
+    # short-lived access, long-lived refresh
+    access_token = create_access_token(subject=str(db_user.id))     # typ=access
+    refresh_token = create_refresh_token(subject=str(db_user.id))   # typ=refresh
 
     api_prefix = settings.API_PREFIX or "/api/v1"
-    cookie_path = f"{api_prefix}/auth/refresh"
-
+    cookie_path = f"{api_prefix}/auth/refresh"  # sadece refresh isteğinde gönderilsin
+    print("setting cookie", cookie_path, refresh_token[:10])
+    # DEV: secure=False; PROD/HTTPS: True + SameSite=None tercih edebilirsin
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
         samesite="lax",
-        secure=False,  # PROD/HTTPS: True + samesite="none"
+        secure=False,
         max_age=int(settings.REFRESH_TOKEN_EXPIRE_DAYS) * 24 * 60 * 60,
         path=cookie_path,
     )
@@ -74,13 +75,11 @@ def login(user: UserLogin, response: Response, db: Session = Depends(get_db)):
         "user": UserOut.model_validate(db_user),
     }
 
-# ---------------------------
-# REFRESH → cookie'den refresh al, yeni access ver
-# ---------------------------
+# --- REFRESH -> cookie'den refresh al, yeni access ver ----------------------
 @router.post("/refresh")
 def refresh_token(
     response: Response,
-    refresh_token: str | None = Cookie(default=None),
+    refresh_token: str | None = Cookie(default=None),  # cookie adı parametre adıyla eşleşir
 ):
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token")
@@ -89,9 +88,9 @@ def refresh_token(
         payload = jwt.decode(refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         sub = payload.get("sub")
         if not sub:
-            raise HTTPException(status_code=401, detail="Invalid refresh token")
-        # opsiyonel: "typ" kontrolü
-        if payload.get("typ") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid refresh token: missing sub")
+        tok_typ = payload.get("typ")
+        if tok_typ != "refresh":
             raise HTTPException(status_code=401, detail="Invalid token type")
         user_id = str(sub)
     except ExpiredSignatureError:
@@ -102,19 +101,14 @@ def refresh_token(
     new_access = create_access_token(subject=user_id)
     return {"access_token": new_access, "token_type": "bearer"}
 
-# ---------------------------
-# LOGOUT → refresh cookie sil
-# ---------------------------
+# --- LOGOUT -> refresh cookie sil -------------------------------------------
 @router.post("/logout")
 def logout(response: Response):
     cookie_path = f"{settings.API_PREFIX}/auth/refresh"
     response.delete_cookie("refresh_token", path=cookie_path)
     return {"msg": "Logged out"}
 
-
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-security = HTTPBearer()
-
+# --- Protected helper -------------------------------------------------------
 def get_current_user(
     creds: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
@@ -124,8 +118,12 @@ def get_current_user(
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         sub = payload.get("sub")
         if not sub:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        user_id = int(sub)  # <-- BURASI ÖNEMLİ: UUID değil INT
+            raise HTTPException(status_code=401, detail="Invalid token: missing sub")
+        # access/refresh ayrımı -> header'da refresh kullanılmasın
+        tok_typ = payload.get("typ")
+        if tok_typ and tok_typ != "access":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        user_id = int(sub)
     except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except JWTClaimsError:
