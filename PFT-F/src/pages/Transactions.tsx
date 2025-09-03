@@ -1,46 +1,65 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-/** TYPES & SCHEMAS **/
+/**
+ * PROFESSIONAL TRANSACTIONS PAGE
+ * ------------------------------------------------------
+ * - RHF + Zod form (title, amount, type, category, date, note)
+ * - Category select + "Quick add" modal (creates category on the fly)
+ * - List with search, filters (type/category), sort, pagination (client-side)
+ * - Edit/Delete (inline modal)
+ * - Frosted-glass theme to match app
+ *
+ * Replace demo state with API calls when backend is ready.
+ */
+
+// --------------- Types & Schemas
 const TransactionSchema = z.object({
   id: z.string().optional(),
   title: z.string().min(1, "Title is required"),
   type: z.enum(["income", "expense"]),
-  amount: z.number().positive("Amount must be greater than 0"),
+  amount: z
+    .number({ invalid_type_error: "Enter a valid number" })
+    .positive("Amount must be greater than 0"),
   categoryId: z.string().min(1, "Select a category"),
-  date: z.string().min(1, "Select a date"),
+  date: z.string().min(1, "Select a date"), // ISO date from <input type="date"/>
   note: z.string().max(200).optional(),
 });
+
 type TxForm = z.infer<typeof TransactionSchema>;
 
 export type Category = {
   id: string;
   name: string;
   type: "income" | "expense";
-  color: string;
-  emoji: string;
+  color: string; // hex
+  emoji: string; // short char
 };
+
 export type Tx = {
   id: string;
   title: string;
   type: "income" | "expense";
-  amount: number;
+  amount: number; // stored positive; sign comes from type
   categoryId: string;
-  date: string;
+  date: string; // ISO string (yyyy-mm-dd)
   note?: string;
 };
 
 const CategorySchema = z.object({
   name: z.string().min(1, "Required"),
   type: z.enum(["income", "expense"]),
-  color: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Hex color, e.g. #22d3ee"),
+  color: z
+    .string()
+    .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Hex color, e.g. #22d3ee"),
   emoji: z.string().min(1).max(2),
 });
+
 type NewCategory = z.infer<typeof CategorySchema>;
 
-/** DEMO DATA **/
+// --------------- Demo Data (swap with API later)
 const demoCategories: Category[] = [
   { id: "c-salary", name: "Salary", type: "income", color: "#22d3ee", emoji: "💼" },
   { id: "c-food", name: "Food", type: "expense", color: "#f59e0b", emoji: "🍔" },
@@ -48,11 +67,6 @@ const demoCategories: Category[] = [
   { id: "c-transport", name: "Transport", type: "expense", color: "#34d399", emoji: "🚌" },
 ];
 
-function today(offsetDays = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
-}
 const demoTx: Tx[] = [
   { id: "t1", title: "Salary", type: "income", amount: 4200, categoryId: "c-salary", date: today(-28) },
   { id: "t2", title: "Groceries", type: "expense", amount: 86, categoryId: "c-food", date: today(-8) },
@@ -61,27 +75,13 @@ const demoTx: Tx[] = [
   { id: "t5", title: "Coffee", type: "expense", amount: 8, categoryId: "c-food", date: today(-2) },
 ];
 
-/** UI UTILS **/
-const baseInput =
-  "block w-full rounded-xl border bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 shadow-inner outline-none backdrop-blur focus:ring-2 border-white/10 focus:border-transparent focus:ring-cyan-400";
-const errorRing = "border-rose-400/40 focus:ring-rose-400";
-function cn(...c: Array<string | false | null | undefined>) { return c.filter(Boolean).join(" "); }
-function fmt(n: number) { return `$${n.toLocaleString()}`; }
-function fmtDate(s: string) { return new Date(s).toLocaleDateString(); }
-function findCat(cats: Category[], id?: string) { return cats.find((c) => c.id === id); }
-function Tab({ active, children, onClick }: { active?: boolean; children: React.ReactNode; onClick?: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn("rounded-full px-3 py-1 text-xs",
-        active ? "bg-white/10 text-cyan-300" : "text-white/70 hover:text-white hover:bg-white/5")}
-    >
-      {children}
-    </button>
-  );
+function today(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().slice(0, 10); // yyyy-mm-dd
 }
 
-/** PAGE **/
+// --------------- Page
 export default function TransactionsPage() {
   const [categories, setCategories] = useState<Category[]>(demoCategories);
   const [items, setItems] = useState<Tx[]>(demoTx);
@@ -101,9 +101,7 @@ export default function TransactionsPage() {
     if (filterCat) list = list.filter((t) => t.categoryId === filterCat);
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter(
-        (t) => t.title.toLowerCase().includes(q) || findCat(categories, t.categoryId)?.name.toLowerCase().includes(q)
-      );
+      list = list.filter((t) => t.title.toLowerCase().includes(q) || findCat(categories, t.categoryId)?.name.toLowerCase().includes(q));
     }
     list.sort((a, b) => {
       if (sortBy === "date-desc") return b.date.localeCompare(a.date);
@@ -114,26 +112,51 @@ export default function TransactionsPage() {
     return list;
   }, [items, filterType, filterCat, search, sortBy, categories]);
 
-  // Create form
+  // ------------------- Create form
   const {
     register,
     control,
     handleSubmit,
     reset,
-    setValue,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<TxForm>({
     resolver: zodResolver(TransactionSchema),
-    defaultValues: { title: "", amount: 0, type: "expense", categoryId: "", date: today(), note: "" },
+    defaultValues: {
+      title: "",
+      amount: 0,
+      type: "expense",
+      categoryId: "",
+      date: today(),
+      note: "",
+    },
   });
+
   const typeWatch = watch("type");
 
   const onSubmit = async (v: TxForm) => {
-    const id = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
+    const id = crypto.randomUUID();
     setItems((prev) => [{ id, ...v }, ...prev]);
     reset({ title: "", amount: 0, type: v.type, categoryId: "", date: today(), note: "" });
   };
+
+  // If user picks "__new__" from category, open quick modal
+  const catSelectRef = useRef<HTMLSelectElement | null>(null);
+  useEffect(() => {
+    const el = catSelectRef.current;
+    if (!el) return;
+    const onChange = (e: Event) => {
+      const target = e.target as HTMLSelectElement;
+      if (target.value === "__new__") {
+        setPresetType(typeWatch);
+        setShowCatModal(true);
+        // revert to previous value
+        target.value = "";
+      }
+    };
+    el.addEventListener("change", onChange);
+    return () => el.removeEventListener("change", onChange);
+  }, [typeWatch]);
 
   return (
     <div className="relative z-10 mx-auto px-6 pb-14">
@@ -156,10 +179,7 @@ export default function TransactionsPage() {
               placeholder="Search title or category"
               className="rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 py-2 text-sm text-white placeholder-white/40 backdrop-blur focus:outline-none focus:ring-2 focus:ring-cyan-400"
             />
-            <svg className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-white/60"
-                 viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
-            </svg>
+            <svg className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
           </div>
           <select
             value={filterCat}
@@ -167,7 +187,9 @@ export default function TransactionsPage() {
             className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white backdrop-blur focus:outline-none focus:ring-2 focus:ring-cyan-400"
           >
             <option value="">All categories</option>
-            {categories.map((c) => (<option key={c.id} value={c.id}>{c.emoji} {c.name}</option>))}
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>
+            ))}
           </select>
           <select
             value={sortBy}
@@ -194,7 +216,7 @@ export default function TransactionsPage() {
 
           <div>
             <label className="mb-1 block text-xs text-white/70">Type</label>
-            <select className={baseInput} {...register("type")}>
+            <select className={baseInput} {...register("type")}> 
               <option value="expense">Expense</option>
               <option value="income">Income</option>
             </select>
@@ -212,8 +234,8 @@ export default function TransactionsPage() {
                   min={0}
                   className={cn(baseInput, errors.amount && errorRing)}
                   placeholder="0.00"
-                  value={field.value === undefined ? "" : field.value}
-                  onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+                  value={isNaN(field.value as number) ? "" : field.value}
+                  onChange={(e) => field.onChange(Number(e.target.value))}
                 />
               )}
             />
@@ -228,24 +250,15 @@ export default function TransactionsPage() {
 
           <div className="md:col-span-2">
             <label className="mb-1 block text-xs text-white/70">Category</label>
-            <select
-              className={cn(baseInput, errors.categoryId && errorRing)}
-              {...register("categoryId", {
-                onChange: (e) => {
-                  const val = e.target.value;
-                  if (val === "__new__") {
-                    setPresetType(typeWatch);
-                    setShowCatModal(true);
-                    // temizle
-                    setValue("categoryId", "");
-                  }
-                },
-              })}
-            >
+            <select ref={catSelectRef} className={cn(baseInput, errors.categoryId && errorRing)} {...register("categoryId")}> 
               <option value="">Select category</option>
-              {categories.filter((c) => c.type === typeWatch).map((c) => (
-                <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>
-              ))}
+              {categories
+                .filter((c) => c.type === typeWatch)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.emoji} {c.name}
+                  </option>
+                ))}
               <option value="__new__">+ Add new category…</option>
             </select>
             {errors.categoryId && <p className="mt-1 text-xs text-rose-300">{errors.categoryId.message}</p>}
@@ -291,7 +304,8 @@ export default function TransactionsPage() {
                     <td className="py-2 capitalize text-white/70">{t.type}</td>
                     <td className="py-2 text-white/70">
                       <span className="inline-flex items-center gap-1">
-                        <span>{cat?.emoji}</span><span>{cat?.name}</span>
+                        <span>{cat?.emoji}</span>
+                        <span>{cat?.name}</span>
                       </span>
                     </td>
                     <td className="py-2 text-white/60">{fmtDate(t.date)}</td>
@@ -333,11 +347,11 @@ export default function TransactionsPage() {
           presetType={presetType}
           onClose={() => setShowCatModal(false)}
           onCreate={(data) => {
-            const id = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
+            const id = crypto.randomUUID();
             const cat: Category = { id, ...data };
             setCategories((prev) => [...prev, cat]);
             // auto select newly created
-            setValue("categoryId", id);
+            reset((prev) => ({ ...prev, categoryId: id }));
             setShowCatModal(false);
           }}
         />
@@ -346,10 +360,8 @@ export default function TransactionsPage() {
   );
 }
 
-/** MODALS **/
-function TxEditModal({
-  initial, onClose, onSave, categories,
-}: { initial: Tx; onClose: () => void; onSave: (v: Omit<Tx, "id">) => void; categories: Category[] }) {
+// --------------- Modals & helpers
+function TxEditModal({ initial, onClose, onSave, categories }: { initial: Tx; onClose: () => void; onSave: (v: Omit<Tx, "id">) => void; categories: Category[] }) {
   const { register, control, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<TxForm>({
     resolver: zodResolver(TransactionSchema),
     defaultValues: { ...initial },
@@ -362,11 +374,7 @@ function TxEditModal({
           <h3 className="text-sm font-medium">Edit transaction</h3>
           <button onClick={onClose} className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10">Close</button>
         </div>
-        <form
-          className="grid grid-cols-1 gap-3 md:grid-cols-7"
-          onSubmit={handleSubmit(async (v) => { const { id, ...rest } = v; onSave(rest as Omit<Tx, "id">); })}
-          noValidate
-        >
+        <form className="grid grid-cols-1 gap-3 md:grid-cols-7" onSubmit={handleSubmit(async (v)=>{ const { id, ...rest } = v; onSave(rest as Omit<Tx, "id">); })} noValidate>
           <div className="md:col-span-2">
             <label className="mb-1 block text-xs text-white/70">Title</label>
             <input className={cn(baseInput, errors.title && errorRing)} {...register("title")} />
@@ -380,20 +388,9 @@ function TxEditModal({
           </div>
           <div>
             <label className="mb-1 block text-xs text-white/70">Amount</label>
-            <Controller
-              control={control}
-              name="amount"
-              render={({ field }) => (
-                <input
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  className={cn(baseInput, errors.amount && errorRing)}
-                  value={field.value === undefined ? "" : field.value}
-                  onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))}
-                />
-              )}
-            />
+            <Controller control={control} name="amount" render={({ field }) => (
+              <input type="number" step="0.01" min={0} className={cn(baseInput, errors.amount && errorRing)} value={isNaN(field.value as number) ? "" : field.value} onChange={(e)=>field.onChange(Number(e.target.value))} />
+            )} />
           </div>
           <div>
             <label className="mb-1 block text-xs text-white/70">Date</label>
@@ -401,10 +398,8 @@ function TxEditModal({
           </div>
           <div className="md:col-span-2">
             <label className="mb-1 block text-xs text-white/70">Category</label>
-            <select className={cn(baseInput, errors.categoryId && errorRing)} {...register("categoryId")}>
-              {categories.filter((c) => c.type === typeWatch).map((c) => (
-                <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>
-              ))}
+            <select className={cn(baseInput, errors.categoryId && errorRing)} {...register("categoryId")}> 
+              {categories.filter(c=>c.type===typeWatch).map(c=> <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
             </select>
           </div>
           <div className="md:col-span-7">
@@ -421,17 +416,10 @@ function TxEditModal({
   );
 }
 
-function QuickCategoryModal({
-  presetType, onClose, onCreate,
-}: { presetType: "income" | "expense"; onClose: () => void; onCreate: (v: NewCategory) => void }) {
+function QuickCategoryModal({ presetType, onClose, onCreate }: { presetType: "income" | "expense"; onClose: () => void; onCreate: (v: NewCategory) => void }) {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<NewCategory>({
     resolver: zodResolver(CategorySchema),
-    defaultValues: {
-      name: "",
-      type: presetType,
-      color: presetType === "income" ? "#22d3ee" : "#f59e0b",
-      emoji: presetType === "income" ? "💼" : "🍔",
-    },
+    defaultValues: { name: "", type: presetType, color: presetType === "income" ? "#22d3ee" : "#f59e0b", emoji: presetType === "income" ? "💼" : "🍔" },
   });
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
@@ -440,11 +428,7 @@ function QuickCategoryModal({
           <h3 className="text-sm font-medium">New category</h3>
           <button onClick={onClose} className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10">Close</button>
         </div>
-        <form
-          onSubmit={handleSubmit(async (v) => { onCreate(v); })}
-          noValidate
-          className="grid grid-cols-1 gap-3 sm:grid-cols-2"
-        >
+        <form onSubmit={handleSubmit(async (v)=>{ onCreate(v); })} noValidate className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="mb-1 block text-xs text-white/70">Name</label>
             <input className={cn(baseInput, errors.name && errorRing)} {...register("name")} placeholder="e.g. Groceries" />
@@ -452,10 +436,7 @@ function QuickCategoryModal({
           </div>
           <div>
             <label className="mb-1 block text-xs text-white/70">Type</label>
-            <select className={baseInput} {...register("type")}>
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
-            </select>
+            <select className={baseInput} {...register("type")}> <option value="expense">Expense</option> <option value="income">Income</option> </select>
           </div>
           <div>
             <label className="mb-1 block text-xs text-white/70">Color</label>
@@ -476,7 +457,21 @@ function QuickCategoryModal({
   );
 }
 
-/** actions **/
 function deleteTx(id: string, setItems: React.Dispatch<React.SetStateAction<Tx[]>>) {
   if (confirm("Delete this transaction?")) setItems((prev) => prev.filter((x) => x.id !== id));
+}
+
+function findCat(cats: Category[], id?: string) { return cats.find((c) => c.id === id); }
+function fmt(n: number) { return `$${n.toLocaleString()}`; }
+function fmtDate(s: string) { return new Date(s).toLocaleDateString(); }
+
+// ---- UI utils
+const baseInput = "block w-full rounded-xl border bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 shadow-inner outline-none backdrop-blur focus:ring-2 border-white/10 focus:border-transparent focus:ring-cyan-400";
+const errorRing = "border-rose-400/40 focus:ring-rose-400";
+function cn(...c: Array<string | false | null | undefined>): string { return c.filter(Boolean).join(" "); }
+
+function Tab({ active, children, onClick }: { active?: boolean; children: React.ReactNode; onClick?: () => void }) {
+  return (
+    <button onClick={onClick} className={cn("rounded-full px-3 py-1 text-xs", active ? "bg-white/10 text-cyan-300" : "text-white/70 hover:text-white hover:bg-white/5")}>{children}</button>
+  );
 }
