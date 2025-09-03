@@ -3,12 +3,15 @@ let _accessToken: string | null = null;
 let _persist = false; // remember me
 
 export function setAccessToken(token: string, persist = false) {
+  
   _accessToken = token;
   _persist = persist;
   if (persist) {
+    console.log("oluyogibi")
     localStorage.setItem("access_token", token);
     localStorage.setItem("persist_login", "1");
   } else {
+    console.log("oluyogibi2")
     localStorage.removeItem("access_token");
     localStorage.removeItem("persist_login");
   }

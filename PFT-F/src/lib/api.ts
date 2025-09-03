@@ -3,23 +3,27 @@ import { getAccessToken, setAccessToken } from "../features/auth/tokenStore";
 const API_URL = import.meta.env.VITE_API_URL;
 
 // Refresh endpoint'i cookie okuyacağı için credentials: 'include' şart.
-async function refreshAccessToken(): Promise<string | null> {
-  try {
-    const res = await fetch(`${API_URL}/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const newToken = data?.access_token as string | undefined;
-    if (!newToken) return null;
-    // persist flag’i değiştirmeden güncelle
-    const persist = localStorage.getItem("persist_login") === "1";
-    setAccessToken(newToken, persist);
-    return newToken;
-  } catch {
-    return null;
+let refreshing: Promise<string | null> | null = null;
+
+export async function refreshAccessToken(): Promise<string | null> {
+  if (!refreshing) {
+    refreshing = (async () => {
+      try {
+        const res = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" });
+        if (!res.ok) return null;
+        const { access_token } = await res.json();
+        if (!access_token) return null;
+        const persist = localStorage.getItem("persist_login") === "1";
+        setAccessToken(access_token, persist);
+        return access_token;
+      } catch {
+        return null;
+      } finally {
+        refreshing = null;
+      }
+    })();
   }
+  return refreshing;
 }
 
 /** 401 olursa bir kez refresh dener, tekrar dener, yine 401 ise hatayı döner */
