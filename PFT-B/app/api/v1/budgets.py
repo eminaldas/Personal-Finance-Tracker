@@ -31,6 +31,7 @@ def _to_out(b: Budget) -> BudgetOut:
         categoryId=b.category_id,
         month=_date_to_ym(b.month_start),  # <-- burada stringe çevir
         limit=float(b.limit_amount),
+
         notify=b.notify,
     )
 
