@@ -26,7 +26,11 @@ export const router = createBrowserRouter([
     ],
    
   },
-   {
+  {
+    element:<RequireAuth/>,
+    children:[
+       {
+    
     
         element: <MainLayout />,       // 2) layout burada (Sidebar + <Outlet/>)
         children: [
@@ -36,6 +40,8 @@ export const router = createBrowserRouter([
  {path:"/budgets",element:<BudgetsPage/>}
         ],
    
+  }
+    ]
   },
   {
      element: <AuthLayout />,

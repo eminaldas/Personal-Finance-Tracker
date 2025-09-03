@@ -1,19 +1,9 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-/**
- * Budgets Page (Monthly)
- * - Create/edit/delete budgets per category
- * - Progress bars with color thresholds
- * - Alerts when over 80% and 100%
- * - Filter by type, search by name
- * - Quick-add Category modal (same UX as Transactions)
- * - Frosted-glass theme
- */
-
-// Types & Schemas
+// Budget tipleri (senin types/budget.ts'tan)
 export type Category = {
   id: string;
   name: string;
@@ -30,14 +20,24 @@ export type Budget = {
   note?: string;
 };
 
+// --- API HOOKLARI ---
+// budgets
+import {
+  useBudgets,
+  useCreateBudget,
+  useUpdateBudget,
+  useDeleteBudget,
+} from "../features/budget";
+// categories (min. API/hook aşağıda)
+import { useCategories, useCreateCategory } from "../features/categories";
+
 const BudgetSchema = z.object({
   id: z.string().optional(),
   categoryId: z.string().min(1, "Pick a category"),
-  limit: z.coerce.number().positive("Limit must be > 0"),
+  limit: z.number().positive("Limit must be > 0"),
   month: z.string().min(7, "Select month"),
   note: z.string().max(160).optional(),
 });
-
 type BudgetForm = z.infer<typeof BudgetSchema>;
 
 const CategorySchema = z.object({
@@ -48,14 +48,12 @@ const CategorySchema = z.object({
     .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Hex color, e.g. #22d3ee"),
   emoji: z.string().min(1).max(2),
 });
-
 type NewCategory = z.infer<typeof CategorySchema>;
 
 // utils
-function ym(date = new Date()) {
+function ym(date = new Date()): string {
   return date.toISOString().slice(0, 7); // yyyy-mm
 }
-
 function cn(...c: Array<string | false | null | undefined>): string {
   return c.filter(Boolean).join(" ");
 }
@@ -64,53 +62,48 @@ const baseInput =
   "block w-full rounded-xl border bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 shadow-inner outline-none backdrop-blur focus:ring-2 border-white/10 focus:border-transparent focus:ring-cyan-400";
 const errorRing = "border-rose-400/40 focus:ring-rose-400";
 
-// Demo data (swap with API)
-const demoCategories: Category[] = [
-  { id: "c-food", name: "Food", type: "expense", color: "#f59e0b", emoji: "🍔" },
-  { id: "c-rent", name: "Housing", type: "expense", color: "#ef4444", emoji: "🏠" },
-  { id: "c-transport", name: "Transport", type: "expense", color: "#34d399", emoji: "🚌" },
-  { id: "c-salary", name: "Salary", type: "income", color: "#22d3ee", emoji: "💼" },
-];
-
-const demoBudgets: Budget[] = [
-  { id: "b1", categoryId: "c-food", limit: 400, month: ym() },
-  { id: "b2", categoryId: "c-transport", limit: 180, month: ym() },
-  { id: "b3", categoryId: "c-rent", limit: 1000, month: ym() },
-];
-
-// Pretend spend per category this month (replace with real aggregation from transactions)
-// IMPORTANT: keys with '-' must be quoted
-const demoSpent: Record<string, number> = {
-  "c-food": 286,
-  "c-transport": 92,
-  "c-rent": 1000,
-};
-
 export default function BudgetsPage() {
-  const [categories, setCategories] = useState<Category[]>(demoCategories);
-  const [budgets, setBudgets] = useState<Budget[]>(demoBudgets);
   const [editing, setEditing] = useState<Budget | null>(null);
   const [showCatModal, setShowCatModal] = useState(false);
 
   const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all");
+  const [filterType, setFilterType] = useState<"all" | "income" | "expense">(
+    "all"
+  );
   const [month, setMonth] = useState<string>(ym());
 
+  // --- DATA HOOKLARI ---
+  const { data: categories = [], isLoading: catLoading } = useCategories();
+  const {
+    data: budgets = [],
+    isLoading: budgetLoading,
+    error: budgetErr,
+  } = useBudgets(month);
+
+  // mutations
+  const createBudget = useCreateBudget(month);
+  const updateBudget = useUpdateBudget(month);
+  const deleteBudget = useDeleteBudget(month);
+  const createCategory = useCreateCategory();
+
+  // harcama (spent) şimdilik API’den gelmiyorsa 0; ileride transactions agg ile doldur
   const list = useMemo(() => {
-    const data = budgets.filter((b) => b.month === month);
-    return data
+    return budgets
       .map((b) => ({
         ...b,
-        category: categories.find((c) => c.id === b.categoryId)!,
-        spent: demoSpent[b.categoryId] ?? 0,
+        category: categories.find((c) => c.id === b.categoryId),
+        spent: 0, // TODO: backend'den geliyorsa burada b.spent kullan
       }))
+      .filter((row) => !!row.category)
       .filter((row) =>
-        filterType === "all" ? true : row.category.type === filterType
+        filterType === "all" ? true : row.category!.type === filterType
       )
       .filter((row) =>
-        search ? row.category.name.toLowerCase().includes(search.toLowerCase()) : true
+        search
+          ? row.category!.name.toLowerCase().includes(search.toLowerCase())
+          : true
       );
-  }, [budgets, categories, month, filterType, search]);
+  }, [budgets, categories, filterType, search]);
 
   const {
     register,
@@ -125,10 +118,27 @@ export default function BudgetsPage() {
   });
 
   const onSubmit = async (v: BudgetForm) => {
-    const id = crypto.randomUUID();
-    setBudgets((prev) => [{ id, ...v }, ...prev]);
+    await createBudget.mutateAsync({
+      categoryId: v.categoryId,
+      limit: v.limit,
+      month: v.month,
+      note: v.note,
+    });
     reset({ categoryId: "", limit: 0, month, note: "" });
   };
+
+  if (catLoading || budgetLoading) {
+    return (
+      <div className="p-6 text-sm text-white/70">Veriler yükleniyor…</div>
+    );
+  }
+  if (budgetErr) {
+    return (
+      <div className="p-6 text-sm text-rose-300">
+        Hata: {(budgetErr as Error).message}
+      </div>
+    );
+  }
 
   return (
     <div className="relative z-10 mx-auto px-6 pb-14">
@@ -196,7 +206,11 @@ export default function BudgetsPage() {
           <div className="md:col-span-2">
             <label className="mb-1 block text-xs text-white/70">Category</label>
             <select
-              className={cn(baseInput, errors.categoryId && errorRing)}
+              className={cn(
+                baseInput,
+                "appearance-none pr-8 bg-gray-900",
+                errors.categoryId && errorRing
+              )}
               {...register("categoryId", {
                 onChange: (e) => {
                   if (e.target.value === "__new__") {
@@ -206,13 +220,13 @@ export default function BudgetsPage() {
                 },
               })}
             >
-              <option value="">Select category</option>
+              <option className="bg-gray-900" value="">Select category</option>
               {categories.map((c) => (
-                <option key={c.id} value={c.id}>
+                <option className="bg-gray-900" key={c.id} value={c.id}>
                   {c.emoji} {c.name}
                 </option>
               ))}
-              <option value="__new__">+ Add new category…</option>
+              <option className="bg-gray-900" value="__new__">+ Add new category…</option>
             </select>
             {errors.categoryId && (
               <p className="mt-1 text-xs text-rose-300">
@@ -242,14 +256,10 @@ export default function BudgetsPage() {
                   step="0.01"
                   className={cn(baseInput, errors.limit && errorRing)}
                   placeholder="0.00"
-                  value={
-                    field.value === undefined || Number.isNaN(field.value as number)
-                      ? ""
-                      : (field.value as number)
-                  }
+                  value={field.value ?? ""}
                   onChange={(e) =>
                     field.onChange(
-                      e.target.value === "" ? NaN : Number(e.target.value)
+                      e.target.value === "" ? undefined : Number(e.target.value)
                     )
                   }
                 />
@@ -275,7 +285,7 @@ export default function BudgetsPage() {
 
           <div className="md:col-span-6 mt-1">
             <button
-              disabled={isSubmitting}
+              disabled={isSubmitting || createBudget.isPending}
               className="rounded-xl bg-gradient-to-tr from-cyan-400 to-fuchsia-500 px-4 py-2 text-sm font-medium text-black shadow-lg shadow-cyan-900/20 transition hover:brightness-110 disabled:opacity-70"
             >
               Add Budget
@@ -307,33 +317,42 @@ export default function BudgetsPage() {
                   <span
                     className="grid h-9 w-9 place-items-center rounded-xl text-xl"
                     style={{
-                      background: row.category.color + "22",
-                      color: row.category.color,
+                      background: row.category!.color + "22",
+                      color: row.category!.color,
                     }}
+                    aria-hidden
                   >
-                    {row.category.emoji}
+                    {row.category!.emoji}
                   </span>
                   <div>
                     <div className="text-sm font-medium">
-                      {row.category.name}
+                      {row.category!.name}
                     </div>
                     <div className="text-xs text-white/60">{row.month}</div>
                   </div>
                 </div>
-                <button
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
-                  onClick={() =>
-                    setEditing({
-                      id: row.id,
-                      categoryId: row.categoryId,
-                      limit: row.limit,
-                      month: row.month,
-                      note: row.note,
-                    })
-                  }
-                >
-                  Edit
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
+                    onClick={() =>
+                      setEditing({
+                        id: row.id,
+                        categoryId: row.categoryId,
+                        limit: row.limit,
+                        month: row.month,
+                        note: row.note,
+                      })
+                    }
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="rounded-lg border border-rose-300/20 bg-rose-500/10 px-3 py-1.5 text-xs text-rose-200 hover:bg-rose-500/20"
+                    onClick={() => deleteBudget.mutate(row.id)}
+                  >
+                    Delete
+                  </button>
+                </div>
               </header>
 
               <div className="mt-4">
@@ -375,10 +394,8 @@ export default function BudgetsPage() {
           initial={editing}
           categories={categories}
           onClose={() => setEditing(null)}
-          onSave={(upd) => {
-            setBudgets((prev) =>
-              prev.map((x) => (x.id === editing.id ? { ...x, ...upd } : x))
-            );
+          onSave={async (upd) => {
+            await updateBudget.mutateAsync({ id: editing.id, input: upd });
             setEditing(null);
           }}
         />
@@ -388,11 +405,10 @@ export default function BudgetsPage() {
       {showCatModal && (
         <QuickCategoryModal
           onClose={() => setShowCatModal(false)}
-          onCreate={(data) => {
-            const id = crypto.randomUUID();
-            const cat: Category = { id, ...data };
-            setCategories((prev) => [...prev, cat]);
-            setValue("categoryId", id);
+          onCreate={async (data) => {
+            const created = await createCategory.mutateAsync(data);
+            // formda hemen seçili yap
+            setValue("categoryId", created.id);
             setShowCatModal(false);
           }}
         />
@@ -410,7 +426,7 @@ function EditBudgetModal({
 }: {
   initial: Budget;
   onClose: () => void;
-  onSave: (v: Omit<Budget, "id">) => void;
+  onSave: (v: Omit<Budget, "id">) => void | Promise<void>;
   categories: Category[];
 }) {
   const {
@@ -437,17 +453,14 @@ function EditBudgetModal({
         <form
           onSubmit={handleSubmit(async (v) => {
             const { id, ...rest } = v;
-            onSave(rest);
+            await onSave(rest as Omit<Budget, "id">);
           })}
           noValidate
           className="grid grid-cols-1 gap-3"
         >
           <div>
             <label className="mb-1 block text-xs text-white/70">Category</label>
-            <select
-              className={cn(baseInput, errors.categoryId && errorRing)}
-              {...register("categoryId")}
-            >
+            <select className={cn(baseInput, errors.categoryId && errorRing)} {...register("categoryId")}>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.emoji} {c.name}
@@ -474,14 +487,10 @@ function EditBudgetModal({
                   min={0}
                   step="0.01"
                   className={cn(baseInput, errors.limit && errorRing)}
-                  value={
-                    field.value === undefined || Number.isNaN(field.value as number)
-                      ? ""
-                      : (field.value as number)
-                  }
+                  value={field.value ?? ""}
                   onChange={(e) =>
                     field.onChange(
-                      e.target.value === "" ? NaN : Number(e.target.value)
+                      e.target.value === "" ? undefined : Number(e.target.value)
                     )
                   }
                 />
@@ -518,7 +527,7 @@ function QuickCategoryModal({
   onCreate,
 }: {
   onClose: () => void;
-  onCreate: (v: NewCategory) => void;
+  onCreate: (v: NewCategory) => void | Promise<void>;
 }) {
   const {
     register,
@@ -541,9 +550,7 @@ function QuickCategoryModal({
           </button>
         </div>
         <form
-          onSubmit={handleSubmit(async (v) => {
-            onCreate(v);
-          })}
+          onSubmit={handleSubmit(async (v) => onCreate(v))}
           noValidate
           className="grid grid-cols-1 gap-3 sm:grid-cols-2"
         >
@@ -555,7 +562,9 @@ function QuickCategoryModal({
               placeholder="e.g. Groceries"
             />
             {errors.name && (
-              <p className="mt-1 text-xs text-rose-300">{errors.name.message}</p>
+              <p className="mt-1 text-xs text-rose-300">
+                {errors.name.message}
+              </p>
             )}
           </div>
           <div>
@@ -573,7 +582,9 @@ function QuickCategoryModal({
               {...register("color")}
             />
             {errors.color && (
-              <p className="mt-1 text-xs text-rose-300">{errors.color.message}</p>
+              <p className="mt-1 text-xs text-rose-300">
+                {errors.color.message}
+              </p>
             )}
           </div>
           <div className="sm:col-span-2">
