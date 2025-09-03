@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, List, Wallet, BarChart2, Settings, LogOut } from "lucide-react";
+import { Home, List, Wallet, BarChart2,Tags , Settings, LogOut } from "lucide-react";
 
 export default function Sidebar() {
   return (
@@ -13,6 +13,7 @@ export default function Sidebar() {
         <NavItem to="/transactions" icon={<List size={18} />} label="Transactions" />
         <NavItem to="/budgets" icon={<Wallet size={18} />} label="Budgets" />
         <NavItem to="/reports" icon={<BarChart2 size={18} />} label="Reports" />
+        <NavItem to="/categories" icon={<Tags size={18} />} label="categories" />
         <NavItem to="/settings" icon={<Settings size={18} />} label="Settings" />
       </nav>
 

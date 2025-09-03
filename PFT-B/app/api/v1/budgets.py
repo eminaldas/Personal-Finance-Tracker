@@ -21,13 +21,17 @@ def _ym_to_date(ym: str) -> date:
     y, m = ym.split("-")
     return date(int(y), int(m), 1)
 
+
+def _date_to_ym(d: date) -> str:
+    return d.strftime("%Y-%m")
+
 def _to_out(b: Budget) -> BudgetOut:
-    # model → API map
     return BudgetOut(
         id=b.id,
         categoryId=b.category_id,
-        month=b.month_start,  # validator string'e çeviriyor
-        limit=float(b.limit_amount) if isinstance(b.limit_amount, Decimal) else b.limit_amount,
+        month=_date_to_ym(b.month_start),  # <-- burada stringe çevir
+        limit=float(b.limit_amount),
+
         notify=b.notify,
     )
 
