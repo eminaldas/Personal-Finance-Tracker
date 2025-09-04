@@ -3,7 +3,7 @@ import { getAccessToken, setAccessToken } from "../features/auth/tokenStore";
 const API_URL = import.meta.env.VITE_API_URL;
 
 // Refresh endpoint'i cookie okuyacağı için credentials: 'include' şart.
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<string | null> {
   try {
     const res = await fetch(`${API_URL}/auth/refresh`, {
       method: "POST",
