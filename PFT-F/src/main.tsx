@@ -3,7 +3,6 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-// (ops.) Devtools
 import { RouterProvider } from "react-router-dom";
 import { router } from "./app/Router";
 import { AuthProvider } from "./features/auth/authContext";

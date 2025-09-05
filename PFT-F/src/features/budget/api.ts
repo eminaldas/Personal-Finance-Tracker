@@ -12,12 +12,10 @@ export async function fetchBudget(id: string): Promise<Budget> {
   return getJSON<Budget>(`/budgets/${id}`);
 }
 
-// Oluştur
 export async function createBudget(input: BudgetCreate): Promise<Budget> {
   return postJSON<Budget>("/budgets", input);
 }
 
-// Güncelle (PATCH)
 export async function updateBudget(id: string, input: BudgetUpdate): Promise<Budget> {
   const res = await apiFetch(`/budgets/${id}`, {
     method: "PATCH",
@@ -28,9 +26,8 @@ export async function updateBudget(id: string, input: BudgetUpdate): Promise<Bud
   return res.json();
 }
 
-// Sil
 export async function deleteBudget(id: string): Promise<{ id: string }> {
   const res = await apiFetch(`/budgets/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(await res.text());
-  return res.json(); // ör: { id }
+  return res.json(); 
 }

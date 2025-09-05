@@ -42,14 +42,12 @@ export default function DashboardPage() {
       </header>
 
       <main className="relative z-10 mx-auto px-6 pb-14">
-        {/* KPI Cards */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <StatCard title="Balance" value={fmt(kpis.balance)} hint="Current" />
           <StatCard title="Income" value={fmt(kpis.income)} hint="This month" />
           <StatCard title="Expense" value={fmt(kpis.expense)} hint="This month" negative />
         </div>
 
-        {/* Charts */}
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl lg:col-span-2">
             <div className="mb-3 flex items-end justify-between">
@@ -101,7 +99,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Budgets + Recent */}
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl lg:col-span-2">
             <div className="mb-3 flex items-center justify-between">
@@ -171,7 +168,6 @@ function StatCard({ title, value, hint, negative }: { title: string; value: stri
   );
 }
 
-// ---- Demo data & helpers ----
 const monthOptions = [
   { key: monthKey(new Date()), label: formatMonth(new Date()) },
   { key: monthKey(addMonths(new Date(), -1)), label: formatMonth(addMonths(new Date(), -1)) },

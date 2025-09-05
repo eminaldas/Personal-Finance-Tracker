@@ -4,8 +4,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { useCategories, useCreateCategory, useDeleteCategory } from "../features/categories"; // dosya adını senin yapına göre ayarla
-import type { Category } from "../features/categories"; // sunucudaki tip
+import { useCategories, useCreateCategory, useDeleteCategory } from "../features/categories"; 
+import type { Category } from "../features/categories"; 
 
 
 const hexColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -22,17 +22,14 @@ type FormCategoryCreate = Omit<FormCategory, "id">;
 export default function CategoriesPage() {
   const qc = useQueryClient();
 
-  // --- Server state
   const { data: items, isLoading, isError, error } = useCategories();
   const createCategory = useCreateCategory();
   const deleteCategory = useDeleteCategory();
 
-  // --- UI state
   const [editing, setEditing] = useState<Category | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "income" | "expense">("all");
 
-  // --- Derived
   const list = items ?? [];
 
   const filtered = useMemo(() => {
@@ -62,7 +59,6 @@ export default function CategoriesPage() {
    deleteCategory.mutate(id);
   };
 
-  // --- UI states for fetch
   if (isLoading) {
     return (
       <div className="relative z-10 mx-auto px-6 pb-14">
@@ -133,12 +129,12 @@ export default function CategoriesPage() {
         </div>
       </header>
 
-      {/* Create form (gerçek API) */}
+    
       <section className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
         <h2 className="mb-3 text-sm font-medium">Add new category</h2>
         <CategoryForm
           onSubmit={(data) => {
-            // Optimistic: geçici id ile cache’e ekleyip sonra server sonucu ile sync
+           
             const tempId = `temp-${Date.now()}`;
             qc.setQueryData<Category[]>(["categories"], (prev) => [
               ...(prev ?? []),
@@ -147,13 +143,11 @@ export default function CategoriesPage() {
 
             createCategory.mutate(data, {
               onError: () => {
-                // rollback
                 qc.setQueryData<Category[]>(["categories"], (prev) =>
                   (prev ?? []).filter((c) => c.id !== tempId)
                 );
               },
               onSuccess: (serverItem) => {
-                // temp’i gerçek kayıtla değiştir (flicker’ı azaltır)
                 qc.setQueryData<Category[]>(["categories"], (prev) =>
                   (prev ?? []).map((c) => (c.id === tempId ? serverItem : c))
                 );
@@ -164,7 +158,6 @@ export default function CategoriesPage() {
         />
       </section>
 
-      {/* Grid list */}
       <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filtered.map((c) => (
           <article key={c.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
@@ -218,10 +211,8 @@ export default function CategoriesPage() {
           initial={editing}
           onClose={() => setEditing(null)}
           onSave={(data) => {
-            // Şimdilik cache’te güncelle
             patchCategoryInCache(editing.id, data);
             setEditing(null);
-            // TODO: updateCategory API geldiğinde mutate + onError rollback + onSuccess invalidate
           }}
         />
       )}
@@ -229,7 +220,6 @@ export default function CategoriesPage() {
   );
 }
 
-// ---- Form components
 function CategoryForm({
   onSubmit,
   submitting,
@@ -287,7 +277,6 @@ function CategoryForm({
         {errors.color && <p className="mt-1 text-xs text-rose-300">{errors.color.message}</p>}
       </div>
 
-      {/* EMOJI DROPDOWN */}
       <div>
         <label className="mb-1 block text-xs text-white/70">Emoji</label>
         <EmojiDropdown
@@ -295,7 +284,6 @@ function CategoryForm({
           onChange={(emj) => setValue("emoji", emj, { shouldDirty: true, shouldValidate: true })}
           disabled={disabled}
         />
-        {/* form state için gizli input (validation & submit’te yer alması için) */}
         <input type="hidden" {...register("emoji")} />
         {errors.emoji && <p className="mt-1 text-xs text-rose-300">{errors.emoji.message}</p>}
       </div>
@@ -413,7 +401,6 @@ function EditModal({
   );
 }
 
-/* ---------- Emoji Dropdown Component ---------- */
 
 const EMOJIS = [
   "😀","😃","😄","😁","😆","🥹","😊","🙂","😉","😍","😘","😎","🤓",
@@ -458,7 +445,6 @@ function EmojiDropdown({
   const filtered = useMemo(() => {
     if (!q.trim()) return EMOJIS;
     const lower = q.toLowerCase();
-    // çok basit filtre: şimdilik sadece benzerleri döndür
     return EMOJIS.filter((e) => e.toLowerCase().includes(lower));
   }, [q]);
 
@@ -512,7 +498,6 @@ function EmojiDropdown({
                     onChange(e);
                     setOpen(false);
                     setQ("");
-                    // focus geri butona
                     queueMicrotask(() => btnRef.current?.focus());
                   }}
                   className="grid h-8 w-8 place-items-center rounded-md border border-transparent text-lg transition hover:bg-white/10 hover:border-white/10"
@@ -529,7 +514,6 @@ function EmojiDropdown({
   );
 }
 
-// ---- UI utils
 const baseInput =
   "block w-full rounded-xl border bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 shadow-inner outline-none backdrop-blur focus:ring-2 border-white/10 focus:border-transparent focus:ring-cyan-400";
 const errorRing = "border-rose-400/40 focus:ring-rose-400";
@@ -537,7 +521,6 @@ function cn(...c: Array<string | false | null | undefined>): string {
   return c.filter(Boolean).join(" ");
 }
 
-// Small pill tab
 function Tab({
   active,
   children,

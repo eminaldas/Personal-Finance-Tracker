@@ -33,15 +33,15 @@ export function useDeleteCategory() {
 
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: ["categories"] });
-      removeCategoryFromCache(id); // hemen UI’dan sil
+      removeCategoryFromCache(id); 
     },
 
     onError: (_err, _id, _ctx) => {
-      qc.invalidateQueries({ queryKey: ["categories"] }); // rollback için server’dan çek
+      qc.invalidateQueries({ queryKey: ["categories"] }); 
     },
 
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["categories"] }); // doğrulama için server’dan çek
+      qc.invalidateQueries({ queryKey: ["categories"] }); 
     },
   });
 }

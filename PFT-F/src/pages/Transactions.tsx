@@ -3,19 +3,7 @@ import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-/**
- * PROFESSIONAL TRANSACTIONS PAGE
- * ------------------------------------------------------
- * - RHF + Zod form (title, amount, type, category, date, note)
- * - Category select + "Quick add" modal (creates category on the fly)
- * - List with search, filters (type/category), sort, pagination (client-side)
- * - Edit/Delete (inline modal)
- * - Frosted-glass theme to match app
- *
- * Replace demo state with API calls when backend is ready.
- */
 
-// --------------- Types & Schemas
 const TransactionSchema = z.object({
   id: z.string().optional(),
   title: z.string().min(1, "Title is required"),
@@ -24,7 +12,7 @@ const TransactionSchema = z.object({
     .number({ invalid_type_error: "Enter a valid number" })
     .positive("Amount must be greater than 0"),
   categoryId: z.string().min(1, "Select a category"),
-  date: z.string().min(1, "Select a date"), // ISO date from <input type="date"/>
+  date: z.string().min(1, "Select a date"), 
   note: z.string().max(200).optional(),
 });
 
@@ -34,17 +22,17 @@ export type Category = {
   id: string;
   name: string;
   type: "income" | "expense";
-  color: string; // hex
-  emoji: string; // short char
+  color: string; 
+  emoji: string;
 };
 
 export type Tx = {
   id: string;
   title: string;
   type: "income" | "expense";
-  amount: number; // stored positive; sign comes from type
+  amount: number; 
   categoryId: string;
-  date: string; // ISO string (yyyy-mm-dd)
+  date: string; 
   note?: string;
 };
 
@@ -59,7 +47,6 @@ const CategorySchema = z.object({
 
 type NewCategory = z.infer<typeof CategorySchema>;
 
-// --------------- Demo Data (swap with API later)
 const demoCategories: Category[] = [
   { id: "c-salary", name: "Salary", type: "income", color: "#22d3ee", emoji: "💼" },
   { id: "c-food", name: "Food", type: "expense", color: "#f59e0b", emoji: "🍔" },
@@ -78,10 +65,9 @@ const demoTx: Tx[] = [
 function today(offsetDays = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10); // yyyy-mm-dd
+  return d.toISOString().slice(0, 10);
 }
 
-// --------------- Page
 export default function TransactionsPage() {
   const [categories, setCategories] = useState<Category[]>(demoCategories);
   const [items, setItems] = useState<Tx[]>(demoTx);
@@ -89,7 +75,6 @@ export default function TransactionsPage() {
   const [showCatModal, setShowCatModal] = useState(false);
   const [presetType, setPresetType] = useState<"income" | "expense">("expense");
 
-  // Filters
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all");
   const [filterCat, setFilterCat] = useState<string>("");
@@ -112,7 +97,6 @@ export default function TransactionsPage() {
     return list;
   }, [items, filterType, filterCat, search, sortBy, categories]);
 
-  // ------------------- Create form
   const {
     register,
     control,
@@ -140,7 +124,6 @@ export default function TransactionsPage() {
     reset({ title: "", amount: 0, type: v.type, categoryId: "", date: today(), note: "" });
   };
 
-  // If user picks "__new__" from category, open quick modal
   const catSelectRef = useRef<HTMLSelectElement | null>(null);
   useEffect(() => {
     const el = catSelectRef.current;
@@ -150,7 +133,6 @@ export default function TransactionsPage() {
       if (target.value === "__new__") {
         setPresetType(typeWatch);
         setShowCatModal(true);
-        // revert to previous value
         target.value = "";
       }
     };
@@ -160,7 +142,6 @@ export default function TransactionsPage() {
 
   return (
     <div className="relative z-10 mx-auto px-6 pb-14">
-      {/* Header */}
       <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Transactions</h1>
@@ -204,7 +185,6 @@ export default function TransactionsPage() {
         </div>
       </header>
 
-      {/* Create form */}
       <section className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
         <h2 className="mb-3 text-sm font-medium">Add new transaction</h2>
         <form className="grid grid-cols-1 gap-3 md:grid-cols-7" onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -278,7 +258,6 @@ export default function TransactionsPage() {
         </form>
       </section>
 
-      {/* List */}
       <section className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-medium">All Transactions ({filtered.length})</h3>
@@ -328,7 +307,6 @@ export default function TransactionsPage() {
         </div>
       </section>
 
-      {/* Edit Modal */}
       {editing && (
         <TxEditModal
           initial={editing}
@@ -341,7 +319,6 @@ export default function TransactionsPage() {
         />
       )}
 
-      {/* Quick-Add Category */}
       {showCatModal && (
         <QuickCategoryModal
           presetType={presetType}
@@ -350,7 +327,6 @@ export default function TransactionsPage() {
             const id = crypto.randomUUID();
             const cat: Category = { id, ...data };
             setCategories((prev) => [...prev, cat]);
-            // auto select newly created
             reset((prev) => ({ ...prev, categoryId: id }));
             setShowCatModal(false);
           }}
@@ -360,7 +336,6 @@ export default function TransactionsPage() {
   );
 }
 
-// --------------- Modals & helpers
 function TxEditModal({ initial, onClose, onSave, categories }: { initial: Tx; onClose: () => void; onSave: (v: Omit<Tx, "id">) => void; categories: Category[] }) {
   const { register, control, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<TxForm>({
     resolver: zodResolver(TransactionSchema),
@@ -465,7 +440,6 @@ function findCat(cats: Category[], id?: string) { return cats.find((c) => c.id =
 function fmt(n: number) { return `$${n.toLocaleString()}`; }
 function fmtDate(s: string) { return new Date(s).toLocaleDateString(); }
 
-// ---- UI utils
 const baseInput = "block w-full rounded-xl border bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 shadow-inner outline-none backdrop-blur focus:ring-2 border-white/10 focus:border-transparent focus:ring-cyan-400";
 const errorRing = "border-rose-400/40 focus:ring-rose-400";
 function cn(...c: Array<string | false | null | undefined>): string { return c.filter(Boolean).join(" "); }

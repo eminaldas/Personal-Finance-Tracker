@@ -8,7 +8,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       if (!getAccessToken()) {
-        await refreshAccessToken(); // cookie varsa yeni access verir
+        await refreshAccessToken(); 
       }
       setReady(true);
     })();

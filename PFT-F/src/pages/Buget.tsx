@@ -3,32 +3,30 @@ import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-// Budget tipleri (senin types/budget.ts'tan)
+
 export type Category = {
   id: string;
   name: string;
   type: "income" | "expense";
-  color: string; // hex
+  color: string;
   emoji: string;
 };
 
 export type Budget = {
   id: string;
   categoryId: string;
-  limit: number; // monthly limit (positive)
-  month: string; // yyyy-mm (current month by default)
+  limit: number; 
+  month: string;
   note?: string;
 };
 
-// --- API HOOKLARI ---
-// budgets
+
 import {
   useBudgets,
   useCreateBudget,
   useUpdateBudget,
   useDeleteBudget,
 } from "../features/budget";
-// categories (min. API/hook aşağıda)
 import { useCategories, useCreateCategory } from "../features/categories";
 
 const BudgetSchema = z.object({
@@ -50,9 +48,9 @@ const CategorySchema = z.object({
 });
 type NewCategory = z.infer<typeof CategorySchema>;
 
-// utils
+
 function ym(date = new Date()): string {
-  return date.toISOString().slice(0, 7); // yyyy-mm
+  return date.toISOString().slice(0, 7); 
 }
 function cn(...c: Array<string | false | null | undefined>): string {
   return c.filter(Boolean).join(" ");
@@ -72,7 +70,6 @@ export default function BudgetsPage() {
   );
   const [month, setMonth] = useState<string>(ym());
 
-  // --- DATA HOOKLARI ---
   const { data: categories = [], isLoading: catLoading } = useCategories();
   const {
     data: budgets = [],
@@ -80,19 +77,17 @@ export default function BudgetsPage() {
     error: budgetErr,
   } = useBudgets(month);
 
-  // mutations
   const createBudget = useCreateBudget(month);
   const updateBudget = useUpdateBudget(month);
   const deleteBudget = useDeleteBudget(month);
   const createCategory = useCreateCategory();
 
-  // harcama (spent) şimdilik API’den gelmiyorsa 0; ileride transactions agg ile doldur
   const list = useMemo(() => {
     return budgets
       .map((b) => ({
         ...b,
         category: categories.find((c) => c.id === b.categoryId),
-        spent: 0, // TODO: backend'den geliyorsa burada b.spent kullan
+        spent: 0, 
       }))
       .filter((row) => !!row.category)
       .filter((row) =>
@@ -417,7 +412,6 @@ export default function BudgetsPage() {
   );
 }
 
-// Modals
 function EditBudgetModal({
   initial,
   onClose,
@@ -616,7 +610,6 @@ function QuickCategoryModal({
   );
 }
 
-/** Small tab pill used in header filters */
 function Tab({
   active,
   onClick,

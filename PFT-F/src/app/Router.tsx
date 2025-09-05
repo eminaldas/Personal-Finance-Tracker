@@ -13,12 +13,10 @@ import TransactionsPage from "../pages/Transactions";
 import BudgetsPage from "../pages/Buget";
 
 export const router = createBrowserRouter([
-  // herkese açık rotalar
 
   { path: "/", element: <HomePage /> },
 
 
-  // uygulama içi (layout altında) rotalar
   {
     element: <App />,
     children: [
@@ -32,7 +30,7 @@ export const router = createBrowserRouter([
        {
     
     
-        element: <MainLayout />,       // 2) layout burada (Sidebar + <Outlet/>)
+        element: <MainLayout />,      
         children: [
           { path: "/dashboard", element: <DashboardPage /> },   
           { path: "/categories", element: <CategoriesPage /> },   

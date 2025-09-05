@@ -4,7 +4,7 @@ import Sidebar from "../app/Components/Sidebar";
 export default function MainLayout() {
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#0b0c14] text-white">
-      {/* BACKGROUND (en arkada) */}
+      
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute -top-40 -left-32 h-96 w-96 rounded-full bg-fuchsia-600/30 blur-[120px]" />
         <div className="absolute top-1/2 -right-40 h-[28rem] w-[28rem] -translate-y-1/2 rounded-full bg-cyan-500/25 blur-[130px]" />

@@ -5,7 +5,6 @@ export default function NotFoundPage() {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#0b0c14] text-white">
-      {/* Background glows + grid */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-40 -left-32 h-96 w-96 rounded-full bg-fuchsia-600/30 blur-[120px]" />
         <div className="absolute top-1/2 -right-40 h-[28rem] w-[28rem] -translate-y-1/2 rounded-full bg-cyan-500/25 blur-[130px]" />
@@ -20,11 +19,9 @@ export default function NotFoundPage() {
         </svg>
       </div>
 
-      {/* Content */}
       <main className="relative z-10 mx-auto grid min-h-screen max-w-5xl place-items-center px-6 py-12">
         <section className="w-full max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-8 text-center shadow-[0_20px_70px_-20px_rgba(0,0,0,0.5)] backdrop-blur-xl">
           <div className="mx-auto mb-6 grid h-16 w-16 place-items-center rounded-2xl border border-white/10 bg-white/5 text-white/90">
-            {/* compass / alert icon */}
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2a10 10 0 100 20 10 10 0 000-20Z" stroke="currentColor" strokeWidth="1.4" />
               <path d="M12 7v7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />

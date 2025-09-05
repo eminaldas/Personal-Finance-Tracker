@@ -2,7 +2,6 @@ import { getAccessToken, setAccessToken } from "../features/auth/tokenStore";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-// Refresh endpoint'i cookie okuyacağı için credentials: 'include' şart.
 export async function refreshAccessToken(): Promise<string | null> {
   try {
     const res = await fetch(`${API_URL}/auth/refresh`, {
@@ -22,7 +21,6 @@ export async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
-/** 401 olursa bir kez refresh dener, tekrar dener, yine 401 ise hatayı döner */
 export async function apiFetch(input: string, init: RequestInit = {}) {
   const url = input.startsWith("http") ? input : `${API_URL}${input}`;
 
@@ -33,7 +31,7 @@ export async function apiFetch(input: string, init: RequestInit = {}) {
   let res = await fetch(url, {
     ...init,
     headers,
-    credentials: "include", // refresh cookie için isteklerde sakınca yok
+    credentials: "include", 
   });
 
   if (res.status === 401) {
@@ -47,7 +45,6 @@ export async function apiFetch(input: string, init: RequestInit = {}) {
   return res;
 }
 
-/** Basit yardımcılar */
 export async function postJSON<T>(path: string, body: unknown): Promise<T> {
   const res = await apiFetch(path, {
     method: "POST",
