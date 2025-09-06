@@ -6,7 +6,9 @@ from app.db.base import Base
 from app.db.session import engine
 from app.api.v1.categories import router as categories_router
 from app.api.v1.budgets import router as budgets_router
+from app.api.v1.transaction import router as transactions_router
 app = FastAPI(title=settings.APP_NAME)
+
 
 # CORS
 app.add_middleware(
@@ -24,6 +26,7 @@ Base.metadata.create_all(bind=engine)
 app.include_router(auth.router, prefix=settings.API_PREFIX)
 app.include_router(categories_router, prefix=settings.API_PREFIX) # /api/v1/categories
 app.include_router(budgets_router, prefix=settings.API_PREFIX) 
+app.include_router(transactions_router, prefix=settings.API_PREFIX)
 @app.get("/")
 def root():
     return {"message": f"Welcome to {settings.APP_NAME}!"}
