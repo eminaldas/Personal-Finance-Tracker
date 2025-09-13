@@ -11,6 +11,7 @@ import NotFoundPage from "./Components/NotFound";
 import TransactionsPage from "../pages/Transactions";
 import BudgetsPage from "../pages/Buget";
 import HomePage from "../pages/HomePage";
+import ReportsPage from "../pages/Report";
 
 export const router = createBrowserRouter([
 
@@ -35,7 +36,8 @@ export const router = createBrowserRouter([
           { path: "/dashboard", element: <DashboardPage /> },   
           { path: "/categories", element: <CategoriesPage /> },   
           { path: "/transactions", element: <TransactionsPage /> },
-          {path:"/budgets",element:<BudgetsPage/>}
+          {path:"/budgets",element:<BudgetsPage/>},
+          {path:"/reports",element:<ReportsPage/>}
         ],
    
   }
